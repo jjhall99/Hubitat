@@ -14,6 +14,9 @@
  */
 
 import groovy.json.JsonSlurper
+import groovy.transform.Field
+@Field static commandsMap = [Lights:"09", Heater:"13", Blower:"0A", Spa:"07", Filter:"08"]
+
 metadata {
     definition (name: "AquaConnect Parent", namespace: "jjhall99", author: "Jason Hall", cstHandler: true) {
             capability "Switch"
@@ -209,7 +212,7 @@ def initialize() {
 
 def parse(String description) {
 	//log.debug "Parsing '${description}'"
-
+     
         def message = parseLanMessage(description)
         //log.debug(message)
         
@@ -250,7 +253,7 @@ def parse(String description) {
             line1 = line1.replaceAll("Pool Temp ", "")
             line1 = line1.replaceAll("°F", "")
             int con = line1 as Integer
-            int poolTemp = device.currentValue("poolTemp") as Integer
+            int poolTemp = device.currentValue("poolTemp")
             /*log.debug ("device.currentValue(pooltemp) is ${poolTemp}")
             if (poolTemp == con){
                 //log.debug("Pool Temp unchanged")
@@ -269,7 +272,7 @@ def parse(String description) {
         
     //If Pool Mode, Sync Spa Temp
             if(getSecondLedStatus(line3.charAt(0)) == "on")/*Pool Mode*/{
-                int spaTemp = device.currentValue("spaTemp") as Integer
+                int spaTemp = device.currentValue("spaTemp") 
                 //int spaTemp = 100
                 if (spaTemp == con) {sendEvent(name: "spaTemp", value: con, isStateChange: false)
                 }else {sendEvent(name: "spaTemp", value: con, isStateChange: true)
@@ -286,7 +289,7 @@ def parse(String description) {
             int con = line1 as Integer
             //sendEvent(name: "spaTemp", value: con, isStateChange: true)
             //log.debug ("con is ${con}")
-            int spaTemp = device.currentValue("spaTemp") as Integer
+            int spaTemp = device.currentValue("spaTemp")
             //log.debug ("device.currentValue(spatemp) is ${spaTemp}")
             if (spaTemp == con){
                 //log.debug("Spa Temp unchanged")
@@ -520,63 +523,81 @@ def changeMode() {
 	//sendEvent(name: "currentMode", value: "off", isStateChange: true)
 	return postKey("WNewSt.htm", "07");
 }
-def componentOn(device) {
+/*
+private componentOn(device) {
     log.debug "Executing On ${device}"
-    def num = ""
-    switch (x) {
-        case Lights:
+    //def num = ""
+    def num = "" as String
+    switch ($device) {
+        case "Lights":
             num="09"
             break
-        case Heater:
+        case "Heater":
             num="13"
             break
-        case Blower:
+        case "Blower":
             num="0A"
             break
-        case Spa:
+        case "Spa":
             num="07"
             break
-        case Filter:
+        case "Filter":
             num="08"
             break    
         default:
             num = "default"
    }
    log.debug("num: ${num}")
-   return postKey("WNewSt.htm", "${num}");
+   //return postKey("WNewSt.htm", "${num}");
+   return postKey("WNewSt.htm", num);
 }
 
-def componentOff(device) {
+
+private componentOff(device) {
     log.debug "Executing Off ${device}"
-    def num = ""
-    switch (x) {
-        case Lights:
+    //def num = ""
+    def num = "" as String
+    switch (device) {
+        case "Lights":
             num="09"
             break
-        case Heater:
+        case "Heater":
             num="13"
             break
-        case Blower:
+        case "Blower":
             num="0A"
             break
-        case Spa:
+        case "Spa":
             num="07"
             break
-        case Filter:
+        case "Filter":
             num="08"
             break    
         default:
             num = "default"
    }
    log.debug("num: ${num}")
-   return postKey("WNewSt.htm", "${num}");
+   //return postKey("WNewSt.htm", "${num}");
+   return postKey("WNewSt.htm", num);
 }
-/*
 def poll() {
     log.debug("polled")
     refresh()
 }*/
+def componentOn(device) {
+    log.debug "Executing $device On"
+    num = commandsMap."$device" ?: "default"
+    log.debug "num: $num"
+   return postKey("WNewSt.htm", num);
+}
 
+def componentOff(device) {
+    log.debug "Executing $device Off"
+    num = commandsMap."$device" ?: "default"
+    log.debug "num: $num"
+   return postKey("WNewSt.htm", "${num}");
+}
+                    
 def refresh() {
     return createGetRequest("WNewSt.htm");
 }
