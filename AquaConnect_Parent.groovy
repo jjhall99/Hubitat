@@ -43,13 +43,13 @@ metadata {
             attribute "currentMode", "String"
             attribute "alertFlag", "String"
             
-            //command "componentOn(String)";
-            //command "componentOff(String)";
+            command "componentOn(String)";
+            command "componentOff(String)";
             //command "toggleLightMode(count)";
-            //command "filter"
-            //command "blower"
+            command "filter"
+            command "blower"
             //command "changeMode"
-            //command "heater"
+            command "heater"
             command "toggleLights"
             
             command "createChildDevices"
@@ -168,8 +168,9 @@ metadata {
     
     
 def installed() {
-    log.debug "Parent Installed"
     createChildDevices()
+    initialize()
+    log.debug "Parent Installed"
 }    
 def createChildDevices() {
     log.debug "Parent createChildDevices"    
@@ -204,10 +205,15 @@ def updated() {
 
 def initialize() {
     //response(refresh())
-    /*sendEvent(name: "DeviceWatch-DeviceStatus", value: "online")
+    sendEvent(name: "DeviceWatch-DeviceStatus", value: "online")
     sendEvent(name: "healthStatus", value: "online")
-    sendEvent(name: "DeviceWatch-Enroll", value: [protocol: "cloud", scheme:"untracked"].encodeAsJson(), displayed: false)
-    log.info ("initialize run")*/
+    //sendEvent(name: "DeviceWatch-Enroll", value: [protocol: "cloud", scheme:"untracked"].encodeAsJson(), displayed: false)
+    sendEvent(name: "poolTemp", value: "50", isStateChange: true)
+    sendEvent(name: "spaTemp", value: "50", isStateChange: true)
+    sendEvent(name: "airTemp", value: "50", isStateChange: true)
+    sendEvent(name: "saltLevel", value: "1000", isStateChange: true)
+    sendEvent(name: "chlorinatorStatus", value: "65", isStateChange: true)
+    log.info ("initialize run")
 }    
 
 def parse(String description) {
@@ -307,7 +313,7 @@ def parse(String description) {
             //log.debug("Air temp updated")
             int con = line1 as Integer
             //sendEvent(name: "airTemp", value: con, isStateChange: true)
-            int airTemp = device.currentValue("airTemp") as Integer
+            int airTemp = device.currentValue("airTemp")
             //log.debug ("device.currentValue(airtemp) is ${airTemp}")
             if (airTemp == con){
                 //log.debug("Air Temp unchanged")
@@ -324,7 +330,7 @@ def parse(String description) {
             //log.debug("Pool Chlorinator status");
             int con = line2 as Integer
             //sendEvent(name: "chlorinatorStatus", value: con, isStateChange: true)
-            int chlorinatorStatus = device.currentValue("chlorinatorStatus") as Integer
+            int chlorinatorStatus = device.currentValue("chlorinatorStatus")
             //log.debug ("device.currentValue(chlorinatorStatus) is ${chlorinatorStatus}")
             if (chlorinatorStatus == con){
                 //log.debug("Chlorinator Status unchanged")
@@ -579,34 +585,33 @@ private componentOff(device) {
    log.debug("num: ${num}")
    //return postKey("WNewSt.htm", "${num}");
    return postKey("WNewSt.htm", num);
-}
+} */
+
 def poll() {
     log.debug("polled")
     refresh()
-}*/
+}
+
 def componentOn(device) {
     log.debug "Executing $device On"
     num = commandsMap."$device" ?: "default"
     log.debug "num: $num"
+   //return postKey("WNewSt.htm", "${num}");
    return postKey("WNewSt.htm", num);
 }
+
 
 def componentOff(device) {
     log.debug "Executing $device Off"
     num = commandsMap."$device" ?: "default"
     log.debug "num: $num"
-   return postKey("WNewSt.htm", "${num}");
+   //return postKey("WNewSt.htm", "${num}");
+   return postKey("WNewSt.htm", num);
 }
+
                     
 def refresh() {
     return createGetRequest("WNewSt.htm");
-}
-
-void childOn(String dni) {
-        onOffCmd(0xFF, channelNumber(dni))
-}
-void childOff(String dni) {
-        onOffCmd(0, channelNumber(dni))
 }
 
 private getCallBackAddress() {
