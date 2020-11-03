@@ -16,36 +16,63 @@
 metadata {
     definition (name: "AquaConnect Child", namespace: "jjhall99", author: "Jason Hall", cstHandler: true) {
             capability "Switch"
-            capability "Actuator"
-            //capability "Polling"
+            capability "Relay Switch"
             capability "Refresh"
-            //capability "Temperature Measurement"
-            //capability "Configuration"
-            //capability "Health Check"
-            //capability "Indicator"
+            capability "Actuator"
+            capability "Sensor"
+                        
+            attribute "status", "String"
             
+            //command "logsOff"
+            command "logsOn"
+            command "on"
+            command "off"
+            command "refresh"            
            }
 
     preferences {
         input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
-	}
+    	}
+}
+
+def installed () {
+    sendEvent(name: "switch", value:"off", descriptionText:"set initial switch value")
+    log.debug "child initialize run"
+}
+
+def updated () {
+    unschedule()
+    if (debugOutput) runIn(1800,logsOff)
 }
 
 def logsOff(){
     log.warn "debug logging disabled..."
-    device.updateSetting("logEnable",[value:"false",type:"bool"])
+    device.updateSetting("debugOutput",[value:"false",type:"bool"])
 }
 
-def on(value) {
-    parent?.componentOn(this.device)
-    log.debug "child On"
+private logDebug(msg) {
+    if (settings?.debugOutput || settings?.debugOutput == null) {
+        log.debug "$msg"
+    }
 }
 
-def off(value) {
-    parent?.componentOff(this.device)
-    log.debug "child Off"
+void on() {
+    def name = device.label.split(" ")[-1]
+    parent?.componentOff(name)
+    //parent?.componentOn(this.device)
+    //sendEvent(name: "switch", value:"on", isStateChange: true)
+    logDebug "child On"
+}
+
+void off() {
+    def name = device.label.split(" ")[-1]
+    parent?.componentOff(name)
+    //parent?.componentOff(this.device)
+    //sendEvent(name: "switch", value:"off", isStateChange: true)
+    logDebug "child Off"
 }
 
 void refresh() {
-    parent?.childRefresh(device.deviceNetworkId)
+    parent?.refresh()
+    logDebug "child Refresh"
 }
