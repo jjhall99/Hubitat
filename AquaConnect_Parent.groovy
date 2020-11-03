@@ -21,12 +21,12 @@ metadata {
     definition (name: "AquaConnect Parent", namespace: "jjhall99", author: "Jason Hall", cstHandler: true) {
             capability "Switch"
             capability "Actuator"
-            capability "Polling"
+            //capability "Polling"
             capability "Refresh"
             capability "Temperature Measurement"
             capability "Configuration"
-            capability "Health Check"
-            capability "Indicator"
+            //capability "Health Check"
+            //capability "Indicator"
             
             attribute "displayLine1", "String"
             attribute "displayLine2", "String"
@@ -38,29 +38,33 @@ metadata {
             attribute "filter", "String"
             attribute "heater", "String"
             attribute "blower", "String"
-            //attribute "switch", "String" 
+            attribute "switch", "String" 
             attribute "lights", "String"
             attribute "currentMode", "String"
             attribute "alertFlag", "String"
             
-            command "componentOn(String)";
-            command "componentOff(String)";
+            command "componentOn";
+            command "componentOff";
             //command "toggleLightMode(count)";
-            command "filter"
-            command "blower"
+            //command "filter";
+            //command "blower";
             //command "changeMode"
-            command "heater"
-            command "toggleLights"
+            //command "heater";
+            command "toggleLights";
+            //command "logsOff"
+            command "on"
+            command "off"
             
-            command "createChildDevices"
-            command "recreateChildDevices"
-            command "deleteChildren"
+            command "createChildDevices";
+            command "recreateChildDevices";
+            command "deleteChildren";
             }
-    
-    simulator {
-		// TODO: define status and reply messages here
-        }
-
+    preferences {
+        input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
+    	}
+    //********************
+    //SMARTTHINGS TILES
+    //********************
     /*
     tiles (scale:2){
         /*pool (mode, air temp, pool temp, spa temp, salt level, chlorinatorStatus, refresh), 
@@ -152,75 +156,85 @@ metadata {
         }
     }    
         
-      //not in use
-        childDeviceTile("lights", "device.switch", width: 2, height: 2,  canChangeIcon: true, decoration: "flat", childTileName: lights)
-        childDeviceTile("filter", "device.switch", width: 2, height: 2,  canChangeIcon: true, decoration: "flat", childTileName: filter)
-        childDeviceTile("toggleLights", "toggleLights", width: 2, height: 2, canChangeIcon: true, decoration: "flat", childTileName: toggleLights) 
-        childDeviceTile("changeLights", "chooseLights", width: 2, height: 2, canChangeIcon: true,decoration: "flat", childTileName: chooseLights) 
-        childDeviceTile("heater", "device.switch", width: 2, height: 2,  canChangeIcon: true, decoration: "flat", childTileName: heater)
-        childDeviceTile("blower", "device.switch", width: 2, height: 2,  canChangeIcon: true, decoration: "flat", childTileName: blower)
-        childDeviceTile("superChlor", "device.switch", width: 2, height: 2, canChangeIcon: true,decoration: "flat", childTileName: superChlor)
-        
         main "lights"
         details (["airTemp", "poolTemp", "spaTemp", "currentMode", "saltLevel", "chlorinatorStatus", "line1", "line2", "filter", "heater", "blower", "lights", "toggleLights", "dummyTile2"])
     */
     }   
     
-    
 def installed() {
     createChildDevices()
     initialize()
-    log.debug "Parent Installed"
-}    
-def createChildDevices() {
-    log.debug "Parent createChildDevices"    
-        addChildDevice( "jjhall99", "AquaConnect Child", "${device.deviceNetworkId}.08", [name:"AquaConnect Child Device", label: "Filter", isComponent:true])
-        addChildDevice( "jjhall99", "AquaConnect Child", "${device.deviceNetworkId}.09", [name:"AquaConnect Child Device", label: "Lights", isComponent:true])
-        addChildDevice( "jjhall99", "AquaConnect Child", "${device.deviceNetworkId}.07", [name:"AquaConnect Child Device", label: "Spa", isComponent:true])
-        addChildDevice( "jjhall99", "AquaConnect Child", "${device.deviceNetworkId}.13", [name:"AquaConnect Child Device", label: "Heater", isComponent:true])
-        addChildDevice( "jjhall99", "AquaConnect Child", "${device.deviceNetworkId}.0A", [name:"AquaConnect Child Device", label: "Blower", isComponent:true])   
-        //addChildDevice( "jjhall99", "AquaConnect Child", "${device.deviceNetworkId}.6", [name:"$device.displayName child.6", label: "superChlor", isComponent:true])    
-    }
-    
-def recreateChildDevices() {
-    log.debug "Parent recreateChildDevices"
-    deleteChildren()
-    createChildDevices()
-}
-
-def deleteChildren() {
-	log.debug "Parent deleteChildren"
-	def children = getChildDevices()
-    
-    children.each {child->
-  		deleteChildDevice(child.deviceNetworkId)
-    }
-}
+    refresh()
+    log.warn "Parent Installed"
+} 
 
 def updated() {
     initialize()
-    installed()
-    log.info ("updated run")
+    //unschedule()
+    refresh()
+    log.warn "Parent updated run"
+    //refreshEvery5Seconds() //runs but does not refresh
+    if (logEnable) runIn(1800,logsOff)
+}
+
+void refreshEvery5Seconds() {
+   refresh()
+   runIn(5, refreshEvery5Seconds)
 }
 
 def initialize() {
-    //response(refresh())
-    sendEvent(name: "DeviceWatch-DeviceStatus", value: "online")
-    sendEvent(name: "healthStatus", value: "online")
+    //sendEvent(name: "DeviceWatch-DeviceStatus", value: "online")
+    //sendEvent(name: "healthStatus", value: "online")
     //sendEvent(name: "DeviceWatch-Enroll", value: [protocol: "cloud", scheme:"untracked"].encodeAsJson(), displayed: false)
     sendEvent(name: "poolTemp", value: "50", isStateChange: true)
     sendEvent(name: "spaTemp", value: "50", isStateChange: true)
     sendEvent(name: "airTemp", value: "50", isStateChange: true)
     sendEvent(name: "saltLevel", value: "1000", isStateChange: true)
-    sendEvent(name: "chlorinatorStatus", value: "65", isStateChange: true)
-    log.info ("initialize run")
-}    
+    sendEvent(name: "chlorinatorStatus", value: "50", isStateChange: true)
+    //schedule("0/5 * * * * ? *", refresh) //can't get this to work
+    log.warn "initialize run"
+} 
+
+def createChildDevices() {
+    log.warn "Parent createChildDevices"    
+        addChildDevice( "jjhall99", "AquaConnect Child", "${device.deviceNetworkId}.08", [name:"AquaConnect Child Device", label: "${device.name} Filter", isComponent:true])
+        addChildDevice( "jjhall99", "AquaConnect Child", "${device.deviceNetworkId}.09", [name:"AquaConnect Child Device", label: "${device.name} Lights", isComponent:true])
+        addChildDevice( "jjhall99", "AquaConnect Child", "${device.deviceNetworkId}.07", [name:"AquaConnect Child Device", label: "Spa", isComponent:true])
+        addChildDevice( "jjhall99", "AquaConnect Child", "${device.deviceNetworkId}.13", [name:"AquaConnect Child Device", label: "${device.name} Heater", isComponent:true])
+        addChildDevice( "jjhall99", "AquaConnect Child", "${device.deviceNetworkId}.0A", [name:"AquaConnect Child Device", label: "${device.name} Blower", isComponent:true])   
+        //addChildDevice( "jjhall99", "AquaConnect Child", "${device.deviceNetworkId}.6", [name:"$device.displayName child.6", label: "superChlor", isComponent:true])    
+    }
+    
+def recreateChildDevices() {
+    log.warn "Parent recreateChildDevices"
+    deleteChildren()
+    createChildDevices()
+}
+
+def deleteChildren() {
+	log.warn "Parent deleteChildren"
+	def children = getChildDevices()
+        children.each {child->
+  		deleteChildDevice(child.deviceNetworkId)
+    }
+}  
+
+def logsOff(){
+    log.warn "debug logging disabled..."
+    device.updateSetting("logEnable",[value:"false",type:"bool"])
+}
+
+private logDebug(msg) {
+    if (settings?.logEnable || settings?.logEnable == null) {
+        log.debug "$msg"
+        }
+}
 
 def parse(String description) {
-	//log.debug "Parsing '${description}'"
+	//logDebug "Parsing '${description}'"
      
         def message = parseLanMessage(description)
-        //log.debug(message)
+        //logDebug(message)
         
         def responseLines = message.body.substring(message.body.indexOf("<body>")+6, message.body.indexOf("</body>")).tokenize('\n')
         responseLines = responseLines.drop(1)
@@ -234,7 +248,7 @@ def parse(String description) {
         line1 = line1.replaceAll('<span class="WBON">Spd1</span>', "")
         
         while(line1.startsWith(" ")) line1 = line1.substring(1)
-        log.debug(line1)
+        logDebug (line1)
         sendEvent(name: "displayLine1", value: line1, isStateChange: true)
 
         def line2 = responseLines[1].substring(0, responseLines[1].length()-1)
@@ -247,12 +261,12 @@ def parse(String description) {
         //line2 = line2.replaceAll("%", "")
     
         while(line2.startsWith(" ")) {line2 = line2.substring(1)}
-        log.debug(line2) 
+        logDebug(line2) 
         sendEvent(name: "displayLine2", value: line2, isStateChange: true)
 
         def line3 = responseLines[2].substring(0, responseLines[2].length()-1)
         line3 = line3.substring(0, line3.length()-3)
-        log.debug(line3)
+        logDebug(line3)
 
     //Parse Pool Temp
         if(line1.contains("Pool Temp")) {
@@ -260,19 +274,19 @@ def parse(String description) {
             line1 = line1.replaceAll("°F", "")
             int con = line1 as Integer
             int poolTemp = device.currentValue("poolTemp")
-            /*log.debug ("device.currentValue(pooltemp) is ${poolTemp}")
+            /*logDebug ("device.currentValue(pooltemp) is ${poolTemp}")
             if (poolTemp == con){
-                //log.debug("Pool Temp unchanged")
+                //logDebug("Pool Temp unchanged")
                 sendEvent(name: "poolTemp", value: con, isStateChange: false)
             }else {
-                log.debug("Pool Temp changed from ${poolTemp} to ${con}")
+                logDebug("Pool Temp changed from ${poolTemp} to ${con}")
                 sendEvent(name: "poolTemp", value: con, isStateChange: true)
             }*/
             if (poolTemp == con){
-                //log.debug("Pool Temp unchanged")
+                logDebug("Pool Temp unchanged")
                 sendEvent(name: "poolTemp", value: con, isStateChange: false)
             }else {
-                log.debug("Pool Temp changed from ${poolTemp} to ${con}")
+                log.info("Pool Temp changed from ${poolTemp} to ${con}")
                 sendEvent(name: "poolTemp", value: con, isStateChange: true)
             }
         
@@ -280,9 +294,11 @@ def parse(String description) {
             if(getSecondLedStatus(line3.charAt(0)) == "on")/*Pool Mode*/{
                 int spaTemp = device.currentValue("spaTemp") 
                 //int spaTemp = 100
-                if (spaTemp == con) {sendEvent(name: "spaTemp", value: con, isStateChange: false)
+                if (spaTemp == con) {
+                    logDebug("Spa Temp unchanged")
+                    sendEvent(name: "spaTemp", value: con, isStateChange: false)
                 }else {sendEvent(name: "spaTemp", value: con, isStateChange: true)
-                log.debug("Spa Temp changed from ${spaTemp} to ${con}")
+                log.info("Spa Temp changed from ${spaTemp} to ${con}")
                 }
             }
         }
@@ -291,17 +307,17 @@ def parse(String description) {
         if(line1.contains("Spa Temp")) {
             line1 = line1.replaceAll("Spa Temp ", "")
             line1 = line1.replaceAll("°F", "")
-            //log.debug("Spa temp updated")
+            //logDebug("Spa temp updated")
             int con = line1 as Integer
             //sendEvent(name: "spaTemp", value: con, isStateChange: true)
-            //log.debug ("con is ${con}")
+            //logDebug ("con is ${con}")
             int spaTemp = device.currentValue("spaTemp")
-            //log.debug ("device.currentValue(spatemp) is ${spaTemp}")
+            //logDebug ("device.currentValue(spatemp) is ${spaTemp}")
             if (spaTemp == con){
-                //log.debug("Spa Temp unchanged")
+                logDebug("Spa Temp unchanged")
                 sendEvent(name: "spaTemp", value: con, isStateChange: false)
             }else {
-                log.debug("Spa Temp changed from ${spaTemp} to ${con}")
+                log.info("Spa Temp changed from ${spaTemp} to ${con}")
                 sendEvent(name: "spaTemp", value: con, isStateChange: true)
             }
         }
@@ -310,16 +326,16 @@ def parse(String description) {
         if(line1.contains("Air Temp")) {
             line1 = line1.replaceAll("Air Temp ", "")
             line1 = line1.replaceAll("°F", "")
-            //log.debug("Air temp updated")
+            //logDebug("Air temp updated")
             int con = line1 as Integer
             //sendEvent(name: "airTemp", value: con, isStateChange: true)
             int airTemp = device.currentValue("airTemp")
-            //log.debug ("device.currentValue(airtemp) is ${airTemp}")
+            //logDebug ("device.currentValue(airtemp) is ${airTemp}")
             if (airTemp == con){
-                //log.debug("Air Temp unchanged")
+                logDebug("Air Temp unchanged")
                 sendEvent(name: "airTemp", value: con, isStateChange: false)
             }else {
-                log.debug("Air Temp changed from ${airTemp} to ${con}")
+                log.info("Air Temp changed from ${airTemp} to ${con}")
                 sendEvent(name: "airTemp", value: con, isStateChange: true)
             }
         }
@@ -327,32 +343,32 @@ def parse(String description) {
     //parse Chlorinator Status    
         if(line1.contains("Chlorinator")) {
             line2 = line2.replaceAll("%", "")
-            //log.debug("Pool Chlorinator status");
+            //logDebug("Pool Chlorinator status");
             int con = line2 as Integer
             //sendEvent(name: "chlorinatorStatus", value: con, isStateChange: true)
             int chlorinatorStatus = device.currentValue("chlorinatorStatus")
-            //log.debug ("device.currentValue(chlorinatorStatus) is ${chlorinatorStatus}")
+            //logDebug ("device.currentValue(chlorinatorStatus) is ${chlorinatorStatus}")
             if (chlorinatorStatus == con){
-                //log.debug("Chlorinator Status unchanged")
+                logDebug("Chlorinator Status unchanged")
                 sendEvent(name: "chlorinatorStatus", value: con, isStateChange: false)
             }else {
-                log.debug("Chlorinator Status changed from ${chlorinatorStatus}% to ${con}%")
+                log.info("Chlorinator Status changed from ${chlorinatorStatus}% to ${con}%")
                 sendEvent(name: "chlorinatorStatus", value: con, isStateChange: true)
             }
         } 
         
     //update chlorinator status for super chlorinate    
         if(line1.contains("Super Chlorinate")) {
-            //log.debug("Super Chlorinator On, updating pool chlorinator status");
+            //logDebug("Super Chlorinator On, updating pool chlorinator status");
             //sendEvent(name: "chlorinatorStatus", value: 100, isStateChange: true)
             int con = 100
             int chlorinatorStatus = device.currentValue("chlorinatorStatus")
-            //log.debug ("device.currentValue(spatemp) is ${spaTemp}")
+            //logDebug ("device.currentValue(spatemp) is ${spaTemp}")
             if (chlorinatorStatus == con){
-                //log.debug("Chlorinator Status unchanged")
+                logDebug("Chlorinator Status unchanged")
                 sendEvent(name: "chlorinatorStatus", value: con, isStateChange: false)
             }else {
-                log.debug("Chlorinator Status changed")
+                log.info("Chlorinator Status changed")
                 sendEvent(name: "chlorinatorStatus", value: con, isStateChange: true)
             }
         }
@@ -360,17 +376,17 @@ def parse(String description) {
         if(line1.contains("Salt Level")) {
             //line1 = line1.replaceAll("Salt Level ", "")
             line2 = line2.replaceAll(" PPM", "")
-            //log.debug("Salt Level updated")
+            //logDebug("Salt Level updated")
             int con = line2 as Integer
             //sendEvent(name: "saltLevel", value: con, isStateChange: true)
             //sendEvent(name: "saltLevel", value: line1, isStateChange: true)
-            int saltLevel = device.currentValue("saltLevel") as Integer
-            //log.debug ("device.currentValue(saltLevel) is ${saltLevel}")
+            int saltLevel = device.currentValue("saltLevel")
+            //logDebug ("device.currentValue(saltLevel) is ${saltLevel}")
             if (saltLevel == con){
-                //log.debug("Salt Level unchanged")
+                logDebug("Salt Level unchanged")
                 sendEvent(name: "saltLevel", value: con, isStateChange: false)
             }else {
-                log.debug("Salt Level changed from ${saltLevel} to ${con}")
+                log.info("Salt Level changed from ${saltLevel} to ${con}")
                 sendEvent(name: "saltLevel", value: con, isStateChange: true)
             }
         }
@@ -379,25 +395,25 @@ def parse(String description) {
             sendEvent(name: "alertFlag", value: "${line2}", isStateChange: true)
             //def sayThis = '${line1}, ${line2}'
             //sendNotification("test message",[method:"push"])  //sendNotification("test notification - push", [method: "push"])
-            //log.debug("${sayThis}")
+            //logDebug("${sayThis}")
         }
         
         def currentMode = device.currentValue("currentMode")
-        //log.debug("Current Mode is ${currentMode}")
-        //log.debug("getSecondLedStatus(line3.charAt(0)) == ${getSecondLedStatus(line3.charAt(0))}")
+        //logDebug("Current Mode is ${currentMode}")
+        //logDebug("getSecondLedStatus(line3.charAt(0)) == ${getSecondLedStatus(line3.charAt(0))}")
         if(getSecondLedStatus(line3.charAt(0)) == "on")/*Pool Mode*/{
-            //log.debug("getFirstLedStatus(line3.charAt(0)) is off which should mean pool mode")
+            //logDebug("getFirstLedStatus(line3.charAt(0)) is off which should mean pool mode")
             if(currentMode=="Spa") {
                 sendEvent(name: "currentMode", value: "Pool", isStateChange: true)
-                log.debug("The Pool is now in Pool Mode")
+                logDebug("The Pool is now in Pool Mode")
                 }else {sendEvent(name: "currentMode", value: "Pool", isStateChange: false)
-                    //log.debug("Current Mode unchanged (Pool)")
+                    //logDebug("Current Mode unchanged (Pool)")
                 }
         } else { if(currentMode=="Spa") { 
             sendEvent(name: "currentMode", value: "Spa", isStateChange: false)
-            //log.debug("Current Mode unchanged (Spa)")
+            logDebug("Current Mode unchanged (Spa)")
             } else {sendEvent(name: "currentMode", value: "Spa", isStateChange: true)
-            log.debug("The Pool is now in Spa Mode")}
+            log.info("The Pool is now in Spa Mode")}
         }
         
     //parse lights status                        
@@ -405,46 +421,54 @@ def parse(String description) {
         if(getSecondLedStatus(line3.charAt(2))=="on"){
             if(status=="off") {
                 sendEvent(name: "switch", value: "on", isStateChange: true)
-                log.debug("Pool Lights are now on")
+                logDebug("Pool Lights are now on")
                 }else {sendEvent(name: "switch", value: "on", isStateChange: false)
-                    //log.debug("Lights are on (unchanged)")
+                    //logDebug("Lights are on (unchanged)")
                 }
         } else { if(status=="off"){
             sendEvent(name: "switch", value: "off", isStateChange: false)
-            //log.debug("Lights are off (unchanged)")
+            //logDebug("Lights are off (unchanged)")
             } else {sendEvent(name: "switch", value: "off", isStateChange: true)
-            log.debug("Pool Lights are now off")}
+            logDebug("Pool Lights are now off")}
         } */
         
-        def status = device.currentValue("lights")
+        def lights = device.currentValue("lights")
         if(getSecondLedStatus(line3.charAt(2))=="on"){
-            if(status=="off") {
+            if(lights=="off") {
                 sendEvent(name: "lights", value: "on", isStateChange: true)
-                log.debug("Pool Lights are now on")
-                }else {sendEvent(name: "lights", value: "on", isStateChange: false)
-                    //log.debug("Lights are on (unchanged)")
+//testing update child switch status
+                def children = childDevices
+                def childDevice = children.find{it.device.label.endsWith("Lights")} 
+                    if(childDevice) {
+                        log.info "Updating ${childDevice} switch to On"
+		child.sendEvent(name: "switch", value: "on", isStateChange: true)
                 }
-        } else { if(status=="off"){
+                log.info("Pool Lights are now on")
+                }else {sendEvent(name: "lights", value: "on", isStateChange: false)
+                    logDebug("Lights are on (unchanged)")
+                }
+        } else { if(lights=="off"){
             sendEvent(name: "lights", value: "off", isStateChange: false)
-            //log.debug("Lights are off (unchanged)")
+            logDebug("Lights are off (unchanged)")
             } else {sendEvent(name: "lights", value: "off", isStateChange: true)
-            log.debug("Pool Lights are now off")}
+            log.info("Pool Lights are now off")}
         } 
     
     //parse filter status
-        def filter = device.currentValue("filter")
+        //def filter = device.currentValue("filter")
+        filter = device.currentValue("filter")
         if(getFirstLedStatus(line3.charAt(2))=="on")/*filter on*/{
             if(filter=="off") {
                 sendEvent(name: "filter", value: "on", isStateChange: true)
-                log.debug("Pool Filter is now on")
+                logDebug("Pool Filter is now on")
                 }else {sendEvent(name: "filter", value: "on", isStateChange: false)
-                    //log.debug("Filter is on (unchanged)")
+                    //logDebug("Filter is on (unchanged)")
                 }
         } else { if(filter=="off"){
             sendEvent(name: "filter", value: "off", isStateChange: false)
-            //log.debug("Filter is off (unchanged)")
+            //logDebug("Filter is off (unchanged)")
             } else {sendEvent(name: "filter", value: "off", isStateChange: true)
-            log.debug("Pool Filter is now off")}
+            logDebug("Pool Filter is now off")}
         }
     //parse heater status
         //if(getFirstLedStatus(line3.charAt(3))=="on")/*heater on*/{
@@ -454,15 +478,15 @@ def parse(String description) {
         if(getFirstLedStatus(line3.charAt(3))=="on")/*heater on*/{
             if(heater=="off") {
                 sendEvent(name: "heater", value: "on", isStateChange: true)
-                log.debug("Pool Heater is now on")
+                log.info("Pool Heater is now on")
                 }else {sendEvent(name: "heater", value: "on", isStateChange: false)
-                    //log.debug("Heater is on (unchanged)")
+                    logDebug("Heater is on (unchanged)")
                 }
         } else { if(heater=="off"){
             sendEvent(name: "heater", value: "off", isStateChange: false)
-            //log.debug("Heater is off (unchanged)")
+            logDebug("Heater is off (unchanged)")
             } else {sendEvent(name: "heater", value: "off", isStateChange: true)
-            log.debug("Pool Heater is now off")}
+            log.info("Pool Heater is now off")}
         }
     
     //parse blower status
@@ -473,43 +497,37 @@ def parse(String description) {
         if(getSecondLedStatus(line3.charAt(4))=="on")/*blower on*/{
             if(blower=="off") {
                 sendEvent(name: "blower", value: "on", isStateChange: true)
-                log.debug("Blower is now on")
+                log.info("Blower is now on")
                 }else {sendEvent(name: "blower", value: "on", isStateChange: false)
-                    //log.debug("Blower is on (unchanged)")
+                    logDebug("Blower is on (unchanged)")
                 }
         } else { if(blower=="off"){
             sendEvent(name: "blower", value: "off", isStateChange: false)
-            //log.debug("Blower is off (unchanged)")
+            logDebug("Blower is off (unchanged)")
             } else {sendEvent(name: "blower", value: "off", isStateChange: true)
-            log.debug("Blower is now off")}
+            logDebug("Blower is now off")}
         }
-    
-        //sendEvent(name: "lights.currentState", value: getSecondLedStatus(line3.charAt(2)), isStateChange: true)
-        //sendEvent(name: "filter", value: getFirstLedStatus(line3.charAt(2)), isStateChange: true)  //verified
-        //sendEvent(name: "heater", value: getFirstLedStatus(line3.charAt(3)), isStateChange: true)  //verified
-        //sendEvent(name: "blower", value: getSecondLedStatus(line3.charAt(4)), isStateChange: true)  //blower verified
-        //sendEvent(name: "aux2Status", value: getFirstLedStatus(line3.charAt(5)), isStateChange: true)  //not using
-
 }
 
 def on() {
-    //log.debug "Executing On for switch"
-    return postKey("WNewSt.htm", "09");
+    log.info "Executing Master On for Pool"
+    return postKey("WNewSt.htm", "00");
 }
 
 def off() {
-    //log.debug "Executing Off for switch"
-    return postKey("WNewSt.htm", "09");   
+    log.info "Executing Master Off for Pool"
+    return postKey("WNewSt.htm", "00");   
 }
 
 def toggleLights(){
     int wait = 2*1 as Integer
-    log.debug "Executing light toggle Off for ${wait}"
-    off()
-    runIn (wait, on(), [overwrite:true])
+    logDebug "Executing light toggle Off for ${wait} seconds"
+    componentOff(lights)
+    runIn (wait, componentOn(lights), [overwrite:true])
     //pause(wait)
-    log.debug "Executing light toggle On for ${wait}"
+    logDebug "Executing light toggle On"
 }
+
 def heater() {
 	//sendEvent(name: "heater", value: "on", isStateChange: true)
 	return postKey("WNewSt.htm", "13");
@@ -529,89 +547,28 @@ def changeMode() {
 	//sendEvent(name: "currentMode", value: "off", isStateChange: true)
 	return postKey("WNewSt.htm", "07");
 }
-/*
-private componentOn(device) {
-    log.debug "Executing On ${device}"
-    //def num = ""
-    def num = "" as String
-    switch ($device) {
-        case "Lights":
-            num="09"
-            break
-        case "Heater":
-            num="13"
-            break
-        case "Blower":
-            num="0A"
-            break
-        case "Spa":
-            num="07"
-            break
-        case "Filter":
-            num="08"
-            break    
-        default:
-            num = "default"
-   }
-   log.debug("num: ${num}")
-   //return postKey("WNewSt.htm", "${num}");
-   return postKey("WNewSt.htm", num);
-}
-
-
-private componentOff(device) {
-    log.debug "Executing Off ${device}"
-    //def num = ""
-    def num = "" as String
-    switch (device) {
-        case "Lights":
-            num="09"
-            break
-        case "Heater":
-            num="13"
-            break
-        case "Blower":
-            num="0A"
-            break
-        case "Spa":
-            num="07"
-            break
-        case "Filter":
-            num="08"
-            break    
-        default:
-            num = "default"
-   }
-   log.debug("num: ${num}")
-   //return postKey("WNewSt.htm", "${num}");
-   return postKey("WNewSt.htm", num);
-} */
-
-def poll() {
-    log.debug("polled")
-    refresh()
-}
 
 def componentOn(device) {
-    log.debug "Executing $device On"
+    logDebug "Executing $device On"
     num = commandsMap."$device" ?: "default"
-    log.debug "num: $num"
-   //return postKey("WNewSt.htm", "${num}");
-   return postKey("WNewSt.htm", num);
+    logDebug "num: $num"
+   return postKey("WNewSt.htm", "${num}");
+   //return postKey("WNewSt.htm", num);
+   //return postKey("WNewSt.htm", "0A");
 }
-
 
 def componentOff(device) {
-    log.debug "Executing $device Off"
+    logDebug "Executing $device Off"
     num = commandsMap."$device" ?: "default"
-    log.debug "num: $num"
-   //return postKey("WNewSt.htm", "${num}");
-   return postKey("WNewSt.htm", num);
+    logDebug "num: $num"
+   return postKey("WNewSt.htm", "${num}");
+   //return postKey("WNewSt.htm", num);
+   //return postKey("WNewSt.htm", "0A");
 }
-
                     
 def refresh() {
     return createGetRequest("WNewSt.htm");
+    logDebug "parent refresh"
 }
 
 private getCallBackAddress() {
@@ -619,9 +576,8 @@ private getCallBackAddress() {
 }
 
 private createGetRequest(String url) {
-
-    //log.debug "createGetRequest"
-    //log.debug("/${url}")
+    //logDebug "createGetRequest"
+    //logDebug("/${url}")
     def result = new hubitat.device.HubAction(
         method: "GET",
         path: "/${url}",
@@ -633,9 +589,8 @@ private createGetRequest(String url) {
 }
 
 private postKey(String url, String key) {
-
-    log.debug("/${url}")
-    log.debug("KeyId:"+key);
+    //logDebug("/${url}")
+    //logDebug("KeyId:"+key);
     
     def result = new hubitat.device.HubAction(
             method: "POST",
@@ -646,8 +601,7 @@ private postKey(String url, String key) {
                 "Content-Type": "application/x-www-form-urlencoded"
             ]
         )
-
-        return result;
+    return result;
 }
 
 // gets the address of the device
@@ -665,7 +619,7 @@ private getHostAddress() {
         }
     }
 
-    log.debug "Using IP: ${convertHexToIP(ip)} and port: ${convertHexToInt(port)} for device: ${device.id}"
+    //logDebug "Using IP: ${convertHexToIP(ip)} and port: ${convertHexToInt(port)} for device: ${device.id}"
     return convertHexToIP(ip) + ":" + convertHexToInt(port)
 }
 
@@ -688,7 +642,7 @@ private String getSecondLedStatus(asciiByte) {
 
 private String extractNibbles(asciiByte) 
 {
-	def TwoChars; 
+    def TwoChars; 
 
     switch (asciiByte)
     {
@@ -741,8 +695,8 @@ private String extractNibbles(asciiByte)
       	case "f":
         	TwoChars = "66"; 
         	break;
-      default:
-        TwoChars = "00";
+        default:
+                TwoChars = "00";
     }
 	return TwoChars;	
 } 
@@ -768,7 +722,5 @@ private decodeRawLedData(NibData)
       default:
         StrClassData = "WEBS_NOKEY"; 
     }
-	
     return StrClassData; 
-
 } 
