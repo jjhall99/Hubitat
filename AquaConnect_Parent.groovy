@@ -169,17 +169,17 @@ def installed() {
 } 
 
 def updated() {
-    initialize()
     //unschedule()
+    //initialize()
     refresh()
     log.warn "Parent updated run"
-    //refreshEvery5Seconds() //runs but does not refresh
-    if (logEnable) runIn(1800,logsOff)
+    //refreshEvery5Seconds()
+    if (logEnable) runIn(1800,"logsOff", [overwrite:false, data: [null:null]])
 }
 
 void refreshEvery5Seconds() {
    refresh()
-   runIn(5, refreshEvery5Seconds)
+   runIn(5,"refreshEvery5Seconds",[overwrite:false, data: [device:refresh]])
 }
 
 def initialize() {
@@ -191,7 +191,8 @@ def initialize() {
     sendEvent(name: "airTemp", value: "50", isStateChange: true)
     sendEvent(name: "saltLevel", value: "1000", isStateChange: true)
     sendEvent(name: "chlorinatorStatus", value: "50", isStateChange: true)
-    //schedule("0/5 * * * * ? *", refresh) //can't get this to work
+    refresh()
+    schedule("0/5 * * ? * * *", refresh)
     log.warn "initialize run"
 } 
 
@@ -217,7 +218,14 @@ def deleteChildren() {
         children.each {child->
   		deleteChildDevice(child.deviceNetworkId)
     }
-}  
+}
+
+def uninstalled() {
+    log.info "Executing uninstalled"
+    unschedule()
+    deleteChildren()
+}
+
 
 def logsOff(){
     log.warn "debug logging disabled..."
@@ -405,6 +413,12 @@ def parse(String description) {
             //logDebug("getFirstLedStatus(line3.charAt(0)) is off which should mean pool mode")
             if(currentMode=="Spa") {
                 sendEvent(name: "currentMode", value: "Pool", isStateChange: true)
+                def children = childDevices
+                def childDevice = children.find{it.device.label.endsWith("Spa")} 
+                    if(childDevice) {
+                        log.info "Updating ${childDevice} switch to Off"
+		        childDevice.childEvent([name: "switch", value: "off", isStateChange: true])
+                    }
                 logDebug("The Pool is now in Pool Mode")
                 }else {sendEvent(name: "currentMode", value: "Pool", isStateChange: false)
                     //logDebug("Current Mode unchanged (Pool)")
@@ -413,7 +427,14 @@ def parse(String description) {
             sendEvent(name: "currentMode", value: "Spa", isStateChange: false)
             logDebug("Current Mode unchanged (Spa)")
             } else {sendEvent(name: "currentMode", value: "Spa", isStateChange: true)
-            log.info("The Pool is now in Spa Mode")}
+            log.info("The Pool is now in Spa Mode")
+            def children = childDevices
+                def childDevice = children.find{it.device.label.endsWith("Spa")} 
+                    if(childDevice) {
+                        log.info "Updating ${childDevice} switch to On"
+		        childDevice.childEvent([name: "switch", value: "on", isStateChange: true])
+                    }
+            }
         }
         
     //parse lights status                        
@@ -436,12 +457,13 @@ def parse(String description) {
         if(getSecondLedStatus(line3.charAt(2))=="on"){
             if(lights=="off") {
                 sendEvent(name: "lights", value: "on", isStateChange: true)
-//testing update child switch status
+//WORKING update child switch status
                 def children = childDevices
                 def childDevice = children.find{it.device.label.endsWith("Lights")} 
                     if(childDevice) {
                         log.info "Updating ${childDevice} switch to On"
-		child.sendEvent(name: "switch", value: "on", isStateChange: true)
+		//child.sendEvent(name: "switch", value: "on", isStateChange: true)
+                childDevice.childEvent([name: "switch", value: "on", isStateChange: true])
                 }
                 log.info("Pool Lights are now on")
                 }else {sendEvent(name: "lights", value: "on", isStateChange: false)
@@ -450,24 +472,44 @@ def parse(String description) {
         } else { if(lights=="off"){
             sendEvent(name: "lights", value: "off", isStateChange: false)
             logDebug("Lights are off (unchanged)")
-            } else {sendEvent(name: "lights", value: "off", isStateChange: true)
-            log.info("Pool Lights are now off")}
+            } else {
+                sendEvent(name: "lights", value: "off", isStateChange: true)
+                def children = childDevices
+                def childDevice = children.find{it.device.label.endsWith("Lights")} 
+                    if(childDevice) {
+                        log.info "Updating ${childDevice} switch to Off"
+		        childDevice.childEvent([name: "switch", value: "off", isStateChange: true])
+                    }
+                log.info("Pool Lights are now off")}
         } 
     
     //parse filter status
-        //def filter = device.currentValue("filter")
+        def filter = device.currentValue("filter")
         filter = device.currentValue("filter")
         if(getFirstLedStatus(line3.charAt(2))=="on")/*filter on*/{
             if(filter=="off") {
                 sendEvent(name: "filter", value: "on", isStateChange: true)
+                def children = childDevices
+                def childDevice = children.find{it.device.label.endsWith("Filter")} 
+                    if(childDevice) {
+                        log.info "Updating ${childDevice} switch to on"
+		        childDevice.childEvent([name: "switch", value: "on", isStateChange: true])
+                    }
                 logDebug("Pool Filter is now on")
                 }else {sendEvent(name: "filter", value: "on", isStateChange: false)
-                    //logDebug("Filter is on (unchanged)")
+                    logDebug("Filter is on (unchanged)")
                 }
         } else { if(filter=="off"){
             sendEvent(name: "filter", value: "off", isStateChange: false)
             //logDebug("Filter is off (unchanged)")
-            } else {sendEvent(name: "filter", value: "off", isStateChange: true)
+            } else {
+                def children = childDevices
+                def childDevice = children.find{it.device.label.endsWith("Filter")} 
+                    if(childDevice) {
+                        log.info "Updating ${childDevice} switch to Off"
+		        childDevice.childEvent([name: "switch", value: "off", isStateChange: true])
+                    }
+                sendEvent(name: "filter", value: "off", isStateChange: true)
             logDebug("Pool Filter is now off")}
         }
     //parse heater status
@@ -477,6 +519,12 @@ def parse(String description) {
     def heater = device.currentValue("heater")
         if(getFirstLedStatus(line3.charAt(3))=="on")/*heater on*/{
             if(heater=="off") {
+                def children = childDevices
+                def childDevice = children.find{it.device.label.endsWith("Heater")} 
+                    if(childDevice) {
+                        log.info "Updating ${childDevice} switch to On"
+		        childDevice.childEvent([name: "switch", value: "on", isStateChange: true])
+                    }
                 sendEvent(name: "heater", value: "on", isStateChange: true)
                 log.info("Pool Heater is now on")
                 }else {sendEvent(name: "heater", value: "on", isStateChange: false)
@@ -485,8 +533,15 @@ def parse(String description) {
         } else { if(heater=="off"){
             sendEvent(name: "heater", value: "off", isStateChange: false)
             logDebug("Heater is off (unchanged)")
-            } else {sendEvent(name: "heater", value: "off", isStateChange: true)
-            log.info("Pool Heater is now off")}
+            } else {
+                def children = childDevices
+                def childDevice = children.find{it.device.label.endsWith("Heater")} 
+                    if(childDevice) {
+                        log.info "Updating ${childDevice} switch to Off"
+		        childDevice.childEvent([name: "switch", value: "off", isStateChange: true])
+                    }
+                sendEvent(name: "heater", value: "off", isStateChange: true)
+                log.info("Pool Heater is now off")}
         }
     
     //parse blower status
@@ -496,6 +551,12 @@ def parse(String description) {
         def blower = device.currentValue("blower")
         if(getSecondLedStatus(line3.charAt(4))=="on")/*blower on*/{
             if(blower=="off") {
+                def children = childDevices
+                def childDevice = children.find{it.device.label.endsWith("Blower")} 
+                    if(childDevice) {
+                        log.info "Updating ${childDevice} switch to On"
+		        childDevice.childEvent([name: "switch", value: "on", isStateChange: true])
+                    }
                 sendEvent(name: "blower", value: "on", isStateChange: true)
                 log.info("Blower is now on")
                 }else {sendEvent(name: "blower", value: "on", isStateChange: false)
@@ -504,28 +565,43 @@ def parse(String description) {
         } else { if(blower=="off"){
             sendEvent(name: "blower", value: "off", isStateChange: false)
             logDebug("Blower is off (unchanged)")
-            } else {sendEvent(name: "blower", value: "off", isStateChange: true)
-            logDebug("Blower is now off")}
+            } else {
+                def children = childDevices
+                def childDevice = children.find{it.device.label.endsWith("Blower")} 
+                    if(childDevice) {
+                        log.info "Updating ${childDevice} switch to Off"
+		        childDevice.childEvent([name: "switch", value: "off", isStateChange: true])
+                    }
+                sendEvent(name: "blower", value: "off", isStateChange: true)
+                logDebug("Blower is now off")}
         }
+      
 }
 
 def on() {
     log.info "Executing Master On for Pool"
-    return postKey("WNewSt.htm", "00");
+    return postKey("WNewSt.htm", "04");
 }
 
 def off() {
     log.info "Executing Master Off for Pool"
-    return postKey("WNewSt.htm", "00");   
+    return postKey("WNewSt.htm", "04");   
 }
 
 def toggleLights(){
-    int wait = 2*1 as Integer
-    logDebug "Executing light toggle Off for ${wait} seconds"
-    componentOff(lights)
-    runIn (wait, componentOn(lights), [overwrite:true])
-    //pause(wait)
+    //int wait = 2 as Integer
+    //delay=wait.toInteger()
+    logDebug "Executing light toggle Off for */${delay}/* 2 seconds"
+    componentOff("Lights")
+    //wait(2)
+    //runIn (2, componentOn, [data:[device:Lights]])
+    runIn(2,"lightTest",[overwrite: false, data: [device: "lights"]])
     logDebug "Executing light toggle On"
+}
+
+def lightTest(data){
+    log.info "${data.device}"
+    componentOn(data.device)
 }
 
 def heater() {
